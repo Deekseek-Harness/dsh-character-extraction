@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/chapter-extraction.schema.json",
+  "title": "单章提取结果",
+  "description": "一章的提取产物，落盘为 @extracted_dir/ch{index:03d}.json。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["chapter_index", "chapter_title", "source_file", "characters", "clothing", "items"],
+  "properties": {
+    "chapter_index": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "章节下标，等于输入文件名数字前缀。"
+    },
+    "chapter_title": {
+      "type": "string",
+      "minLength": 1,
+      "description": "章节标题，取自 _meta.json 的 title（必要时用 full_title）。"
+    },
+    "source_file": {
+      "type": "string",
+      "minLength": 1,
+      "description": "章节 txt 文件名（不含路径）。"
+    },
+    "characters": {
+      "type": "array",
+      "description": "本章出现的角色。无名龙套不提取。",
+      "items": { "$ref": "character.schema.json" }
+    },
+    "clothing": {
+      "type": "array",
+      "description": "本章实际描写的衣物。",
+      "items": { "$ref": "clothing.schema.json" }
+    },
+    "items": {
+      "type": "array",
+      "description": "本章实际出现的物品。",
+      "items": { "$ref": "item.schema.json" }
+    }
+  }
+}

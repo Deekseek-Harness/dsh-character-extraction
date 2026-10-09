@@ -1,0 +1,8 @@
+commit.txt
+.dsh-acl-recovery
+extracted/*
+!extracted/.gitkeep
+chapters/*
+!chapters/.gitkeep
+cards/*
+!cards/.gitkeep

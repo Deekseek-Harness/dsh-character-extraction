@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/clothing.schema.json",
+  "title": "衣物",
+  "description": "单章 clothing[] 的元素，按「角色 + 场景」组织。规则见 references/clothing-rules.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["character", "scene", "description", "quote"],
+  "properties": {
+    "character": {
+      "type": "string",
+      "minLength": 1,
+      "description": "穿着者姓名，应与本章 characters[].name 一致。"
+    },
+    "scene": {
+      "type": "string",
+      "minLength": 1,
+      "description": "场景简述，如 初登场 / 雪夜赶路 / 婚宴。"
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "衣物描述，原文用词优先。"
+    },
+    "color_material": {
+      "type": "string",
+      "description": "颜色/材质；原文未写写空串，不要推断。"
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 50,
+      "description": "必填。逐字来自本章原文的引用，不超过 50 字。"
+    }
+  }
+}

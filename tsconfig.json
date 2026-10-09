@@ -1,0 +1,24 @@
+{
+  // 仅供编辑器 / 可选的 `tsc --noEmit` 使用。脚本本身由 Node 原生类型擦除直接运行，
+  // 不需要构建步骤，也不需要 tsx。类型检查需先 `npm i -D typescript @types/node`。
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "types": ["node"],
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+    // 只允许可擦除语法，与 Node 的原生 TypeScript 支持保持一致（禁止 enum / namespace 等）。
+    "erasableSyntaxOnly": true,
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": [".dsh/skills/character-extraction/scripts/**/*.ts"]
+}

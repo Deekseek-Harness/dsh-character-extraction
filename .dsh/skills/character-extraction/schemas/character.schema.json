@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/character.schema.json",
+  "title": "角色",
+  "description": "单章 characters[] 的元素。规则见 references/character-rules.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "aliases", "gender", "age", "identity", "appearance", "relations", "confidence"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "最正式、最具辨识度的称呼。必填非空。"
+    },
+    "aliases": {
+      "type": "array",
+      "description": "别名/绰号/称号。不得为别名单独建条目，也不得包含 name 本身。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "gender": {
+      "type": "string",
+      "pattern": "^(男|女|未知)( \\[不确定\\])?$",
+      "description": "男/女/未知；不确定时写作「未知 [不确定]」。"
+    },
+    "age": {
+      "type": "string",
+      "description": "年龄或年龄描述；未知写空串或加 [不确定]。"
+    },
+    "identity": {
+      "type": "string",
+      "description": "身份/职业，尽量用原文词。"
+    },
+    "appearance": {
+      "type": "string",
+      "description": "外貌原文描述，不润色；无描写写空串。"
+    },
+    "relations": {
+      "type": "array",
+      "description": "有方向的关系：target 为对方，type 为从本角色出发的关系类型。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "type"],
+        "properties": {
+          "target": { "type": "string", "minLength": 1, "description": "关系对象的人名，不要用代词。" },
+          "type": { "type": "string", "minLength": 1, "description": "关系类型，如 师徒 / 结义兄弟 / 仇敌。" },
+          "quote": {
+            "type": "string",
+            "description": "扩展字段：支撑该关系的原文引用（人物卡「依据」列）。"
+          }
+        }
+      }
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["高", "中", "低"],
+      "description": "整条角色的置信度。低置信度需在各字段值后加 [不确定]。"
+    },
+    "sources": {
+      "type": "array",
+      "description": "扩展字段：原文依据。人物卡「原文依据」的数据源；建议尽量填写。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chapter", "quote"],
+        "properties": {
+          "chapter": { "type": "integer", "minimum": 0 },
+          "quote": { "type": "string", "minLength": 1, "description": "必须逐字来自本章原文。" }
+        }
+      }
+    }
+  }
+}

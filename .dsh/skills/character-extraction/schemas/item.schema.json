@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/item.schema.json",
+  "title": "物品",
+  "description": "单章 items[] 的元素。规则见 references/item-rules.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["name", "type", "quote"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "物品名，原文用词优先。"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["武器", "信物", "药物", "书籍", "饰品", "日常物件", "特殊器物"],
+      "description": "类型，取自建议词表。"
+    },
+    "appearance": {
+      "type": "string",
+      "description": "外观：材质、颜色、大小、纹饰；原文未写写空串。"
+    },
+    "function": {
+      "type": "string",
+      "description": "功能/用途；原文未说明写空串，不要推断。"
+    },
+    "holder": {
+      "type": "string",
+      "description": "本章内的持有者姓名；无主写空串或「无人持有」。"
+    },
+    "quote": {
+      "type": "string",
+      "minLength": 1,
+      "description": "必填。逐字来自本章原文的引用（建议不超过 50 字）。"
+    }
+  }
+}
