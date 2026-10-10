@@ -1,16 +1,18 @@
 {
   "name": "character-extraction",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
-  "description": "character-extraction DSH skill 的辅助脚本（章节扫描与提取结果校验）。Node 原生 TypeScript，无运行时依赖。",
+  "description": "character-extraction DSH skill 的辅助脚本（章节扫描、提取结果校验、版本备份与历史回滚）。Node 原生 TypeScript，无运行时依赖。",
   "engines": {
     "node": ">=22.18.0"
   },
   "scripts": {
     "scan:chapters": "node .dsh/skills/character-extraction/scripts/scan_chapters.ts",
     "validate:extraction": "node .dsh/skills/character-extraction/scripts/validate_extraction.ts",
-    "test": "node --test --test-isolation=none .dsh/skills/character-extraction/scripts/scan_chapters.test.ts .dsh/skills/character-extraction/scripts/validate_extraction.test.ts",
+    "backup:output": "node .dsh/skills/character-extraction/scripts/backup_output.ts",
+    "history": "node .dsh/skills/character-extraction/scripts/history.ts",
+    "test": "node --test --test-isolation=none .dsh/skills/character-extraction/scripts/scan_chapters.test.ts .dsh/skills/character-extraction/scripts/validate_extraction.test.ts .dsh/skills/character-extraction/scripts/backup_output.test.ts .dsh/skills/character-extraction/scripts/history.test.ts",
     "test:tsx": "tsx --test .dsh/skills/character-extraction/scripts/*.test.ts",
     "typecheck": "tsc --noEmit"
   }

@@ -172,3 +172,117 @@ export interface SchemaViolation {
   path: string
   message: string
 }
+
+// --------------------------------------------------------------------------- //
+// 版本管理（history/）
+// --------------------------------------------------------------------------- //
+
+/** 上一次运行的输出目录记录，用于判断「两次运行是否落在同一个输出目录」。 */
+export interface LastOutput {
+  /** 规范化绝对路径。 */
+  extracted_dir: string
+  /** 规范化绝对路径。 */
+  cards_dir: string
+  /** ISO 8601 UTC。 */
+  updated_at: string
+}
+
+/** `history/_index.json` 的版本条目。 */
+export interface HistoryVersionEntry {
+  /** 形如 `V1`。 */
+  version: string
+  created_at: string
+  /** 相对 `history/` 父目录的路径，如 `history/V1`。 */
+  path: string
+  chapter_count: number
+  character_count: number
+  clothing_count: number
+  item_count: number
+}
+
+/** `history/_index.json` 的完整形状。 */
+export interface HistoryIndex {
+  last_output: LastOutput | null
+  versions: HistoryVersionEntry[]
+  /** 最高版本号；无版本时为 `null`。 */
+  latest: string | null
+}
+
+/** `history/V{n}/_manifest.json` 的完整形状。 */
+export interface BackupManifest {
+  version: string
+  created_at: string
+  /** 章节目录解析后的绝对路径。 */
+  source_chapters: string
+  extracted_dir: string
+  cards_dir: string
+  chapter_count: number
+  character_count: number
+  clothing_count: number
+  item_count: number
+  note: string
+}
+
+/** 输出产物的统计。 */
+export interface OutputCounts {
+  chapter_count: number
+  character_count: number
+  clothing_count: number
+  item_count: number
+}
+
+/** 备份决策原因。 */
+export type BackupReason =
+  /** 与上一次运行同一输出目录且当前输出非空 → 已备份。 */
+  | 'same_output_dir'
+  /** 没有 `last_output`：首次运行，不备份。 */
+  | 'first_run'
+  /** 输出目录与上一次不同：不备份。 */
+  | 'output_dir_changed'
+  /** 当前输出为空（无 `ch*.json`）：不备份。 */
+  | 'empty_output'
+  /** `history/` 落在输出目录内部，拒绝备份以避免递归。 */
+  | 'history_inside_output'
+  /** 备份过程抛错：不阻塞主流程，原因写入 `_progress.json` 的 `backup_failed`。 */
+  | 'backup_error'
+
+/** `backup_output.ts` 输出给主 Agent 的决策 JSON。 */
+export interface BackupDecision {
+  backup_performed: boolean
+  version: string | null
+  reason: BackupReason
+  history_dir: string
+  current_extracted: string
+  current_cards: string
+  /** 仅 `backup_performed` 为真时存在：`history/V{n}/_manifest.json` 的绝对路径。 */
+  manifest?: string
+  previous_extracted?: string
+  previous_cards?: string
+  /** 仅 `backup_performed` 为真时存在。 */
+  counts?: OutputCounts
+  /** 仅 `backup_error` 时存在。 */
+  error?: string
+  /** 失败原因是否已写入 `_progress.json` 的 `backup_failed`。 */
+  backup_failed_recorded?: boolean
+  /** 非致命提示，例如 history 落在盘符根目录。 */
+  warning?: string
+}
+
+/** `history restore` 的结果。 */
+export interface RestoreResult {
+  version: string
+  restored_extracted: string
+  restored_cards: string
+  /** 回滚前对当前输出的快照版本号；当前输出为空时为 `null`。 */
+  snapshot: string | null
+  /** 版本中不存在、但当前输出里多出来的文件（`--clean` 时会被删除）。 */
+  extra_files: string[]
+  cleaned: boolean
+}
+
+/** `history prune` 的结果。 */
+export interface PruneResult {
+  kept: string[]
+  pruned: string[]
+  dry_run: boolean
+}

@@ -8,6 +8,20 @@
 - 输出：`@cards_dir/characters/*.md`、`@cards_dir/clothing/*.md`、`@cards_dir/items/*.md`、`@cards_dir/_index.json`、`@cards_dir/_index.md`。
 - 汇总阶段**禁止**打开任何章节 txt；所有溯源信息只能取自逐章 JSON 的 `quote` / `sources`。
 
+### 0.1 与版本备份的先后关系（硬性）
+
+汇总会**覆盖** `@cards_dir` 并重写 `@extracted_dir/_index.json`，因此顺序不能颠倒：
+
+1. **先**：主 Agent 在逐章循环开始前调用 `backup_output.ts` 取得决策（只有两次运行在同一输出目录时才会备份为 `history/V{n}/`）。备份失败不阻塞，原因记入 `_progress.json` 的 `backup_failed`。
+2. **后**：逐章提取（跳过已完成章）。
+3. **最后**：汇总写盘。
+
+汇总子代理必须遵守：
+
+- **不得**自行调用备份脚本、比较路径、扫描 `history/` 或计算版本号——这些只由 `backup_output.ts` 完成。
+- `history/` 是备份存放处，**不是**当前输出：既不读入归并，也不写入。
+- 若无法确认备份判断已完成，**不要写盘**，返回说明交由主 Agent 先完成备份再重派。
+
 ## 1. 合并同名角色
 
 1. **主名称裁决**：同一角色跨章出现时，取出现频次最高、且最正式（"姓+名"优先于"绰号"）的 `name` 作为主名称。

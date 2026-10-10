@@ -36,19 +36,15 @@ description: 从中文小说单章文本中提取角色、衣物、物品信息�
 - 缺省值：`chapters`、`extracted`、`cards`（相对工作区根目录）。
 - 输入目录**必须存在**；输出目录不存在时**自动创建**。
 
-### 参数解析（已核实的 DSH 行为）
+### 参数解析
 
-DSH 的 `@path` mention 只是**普通提示词文本**，`@` 引用**不会**把文件内容带进上下文，也**不会**替本 skill 解析参数。因此：
+DSH 的 `@path` mention 只是**普通提示词文本**，不带文件内容，也不替本 skill 解析参数：
 
-1. 从用户输入中按书写顺序取出 `@` 引用：`(?:^|\s)@(?:"([^"]*)"?|(\S+))`（引号形式可含空格，目录引用可能是不闭合的 `@"dir/`）。
-2. 去掉前导 `@` 与包裹引号，相对路径**按工作区根目录解析**为绝对路径；绝对路径原样使用。
-3. 按上面的数量规则补足缺省值。输入目录不存在则报错并停止，不要静默改用其他目录。
+1. 按书写顺序取出 `@` 引用：`(?:^|\s)@(?:"([^"]*)"?|(\S+))`（引号形式可含空格；目录引用可能是不闭合的 `@"dir/`）。
+2. 去掉前导 `@` 与引号，相对路径**按工作区根目录解析**；绝对路径原样使用。
+3. 按上面的数量规则补足缺省值；输入目录不存在则报错停止，不要静默换目录。
 
-### 命令注册（已核实的 DSH 行为）
-
-DSH **没有** `command` frontmatter 字段，只有 `name`（必须 kebab-case）、`description`、`whenToUse`、`metadata`、`disable-model-invocation`、`user-invocable` 会被读取；未知键被静默忽略。上面的 `command:` 行仅作兼容与自文档，**不参与注册**。
-
-`/character-extraction` 由 DSH 的 skill 手势映射：直接用户输入中任何以空白为界的 `/name` token，若命中本 skill 的 `name`，就会把本文件全文注入该步，其余文本（`@chapters @extracted @cards`）保持不变。因此命令无需任何插件代码即可触发。
+命令注册：`command` 字段不参与注册（DSH 无此字段），`/character-extraction` 由 DSH 的 `/name` 手势映射到 `name`，无需插件代码。
 
 ## 硬约束
 
@@ -60,6 +56,9 @@ DSH **没有** `command` frontmatter 字段，只有 `name`（必须 kebab-case�
 6. **不推断、不补充**，只提取本章实际出现的信息；每条信息必须有 `quote` 溯源。
 7. 无名龙套不提取；别名/绰号合入 `aliases`；不确定信息标"低"并加 `[不确定]`。
 8. 失败不阻塞：记入 `_progress.json` 的 `failed`，继续下一章。
+9. **不重复提取**：已完成的章（`ch{index:03d}.json` 存在且非空）必须跳过；**每次运行都必须重扫** `_meta.json`（只读文件名），禁止"已存在就直接读取"——否则新增章节会被静默漏掉。
+10. **覆盖输出前必须完成版本备份判断**，且判断只由 `backup_output.ts` 完成（主 Agent 不比较路径、不扫描版本目录、不算版本号）；备份失败不阻塞，原因记入 `_progress.json` 的 `backup_failed`。
+11. 版本管理不得破坏核心链路：`history/` 只作为备份存放处，**绝不**当作当前输出目录读取。
 
 ## 核心提取提示词
 
@@ -121,25 +120,55 @@ DSH **没有** `command` frontmatter 字段，只有 `name`（必须 kebab-case�
    - @extracted_dir：逐章 JSON 输出目录
    - @cards_dir：汇总卡片输出目录
    缺省时使用 @chapters @extracted @cards。
-2. 读取 @extracted_dir/_meta.json；若不存在，扫描 @chapters_dir/*.txt 生成。
-3. 按 index 升序循环：
+2. 调用 backup_output.ts 取得版本备份决策（覆盖输出之前必须完成；备份判断与版本号只由脚本负责）。
+3. 重新扫描 @chapters_dir/*.txt 并覆盖写 @extracted_dir/_meta.json（每次都扫，禁止"已存在就直接读取"，否则新增章节会被漏掉）。
+4. 用 glob 列出 @extracted_dir/ch*.json 得到已完成章号集合 done_set（只看文件名，不读内容）。
+5. 按 index 升序循环（index ∈ done_set 且文件非空的章跳过，除非用户明确要求强制重跑）：
    a. 读取当前章节原文。
    b. 调用 character-extraction Skill。
    c. 校验返回 JSON。
    d. 写入 @extracted_dir/ch{index:03d}.json。
    e. 更新 @extracted_dir/_progress.json。
    f. 释放当前章节原文和提取结果，不加入后续上下文。
-4. 失败则记录到 @extracted_dir/_progress.json 的 failed，继续下一章。
-5. 全部完成后，进入汇总阶段。
+6. 失败则记录到 @extracted_dir/_progress.json 的 failed，继续下一章。
+7. 全部完成后，进入汇总阶段。
 关键约束：
 - 禁止一次性读取所有章节。
 - 禁止在上下文中保留已处理章节原文。
 - 禁止重复引用已处理章节内容。
 - 每章必须立即写盘。
+- 已完成的章（ch{index:03d}.json 存在且非空）必须跳过，不得重复提取；除非用户明确要求强制重跑。
+- _meta.json 每次运行都必须重扫覆盖；新增章节必须被发现。
+- 覆盖输出前必须先由 backup_output.ts 给出决策；主 Agent 不比较路径、不扫描版本目录、不算版本号。
 - 汇总阶段只读 @extracted_dir/*.json，不读 @chapters_dir/*.txt。
 ```
 
-**在主 Agent 中执行第 3 步时，`a`–`f` 全部委托给单章子代理**（见下节）；主 Agent 自己不读原文、不读提取结果。完整可复制的循环细则见 `references/loop-control.md`。
+**在主 Agent 中执行第 5 步时，`a`–`f` 全部委托给单章子代理**（见下节）；主 Agent 自己不读原文、不读提取结果。完整可复制的循环细则见 `references/loop-control.md`。
+
+## 版本管理（`history/`）
+
+每次运行都会覆盖输出，因此覆盖前要先做一次**简单目录备份**。判断与执行全部由脚本完成：
+
+```bash
+node .dsh/skills/character-extraction/scripts/backup_output.ts --extracted extracted --cards cards
+```
+
+- **只有两次运行落在同一个输出目录**，脚本才把上一次输出备份为 `history/V{n}/`（含 `extracted/`、`cards/`、`_manifest.json`）。
+- 换了输出目录 / 首次运行 / 当前输出为空 → **不备份**，只更新 `history/_index.json` 的 `last_output`。
+- 版本号只增不减，不复用已删除编号；`history/` 永不备份进自身。
+- 备份失败**不阻塞**：原因写入 `_progress.json` 的 `backup_failed` 后继续。
+- 调用时机：阶段 0、**任何写盘之前**；单章子代理不触发备份。
+
+查看与回滚子命令：
+
+```bash
+node .dsh/skills/character-extraction/scripts/history.ts list
+node .dsh/skills/character-extraction/scripts/history.ts show V1
+node .dsh/skills/character-extraction/scripts/history.ts restore V1 [--clean]
+node .dsh/skills/character-extraction/scripts/history.ts prune --keep 2 [--dry-run]
+```
+
+`restore` 先备份当前输出为 `history/V{max+1}/` 再回滚；默认不删多余文件（`--clean` 才删）。`prune` 不自动执行。格式见 `references/output-format.md`。
 
 ## 子代理隔离（默认推荐）
 
@@ -164,14 +193,11 @@ DSH **没有** `.dsh/agents/*.md` 自动发现机制；子代理由 `subagent` �
 
 ## 产出
 
-- `@extracted_dir/_meta.json` 章节清单（格式见下）
-- `@extracted_dir/_progress.json` 处理进度
-- `@extracted_dir/ch000.json`、`ch001.json` … 逐章提取结果
-- `@extracted_dir/_index.json` 汇总索引
-- `@cards_dir/characters/*.md`、`@cards_dir/clothing/*.md`、`@cards_dir/items/*.md`
-- `@cards_dir/_index.json`、`@cards_dir/_index.md`
+- `@extracted_dir/`：`_meta.json`、`_progress.json`（含 `failed` / `backup_failed`）、`ch{index:03d}.json`、`_index.json`
+- `@cards_dir/`：`characters/*.md`、`clothing/*.md`、`items/*.md`、`_index.json`、`_index.md`
+- `history/`：`_index.json` + `V{n}/{extracted,cards,_manifest.json}`（仅在两次运行同一输出目录时产生）
 
-`_meta.json`：
+`_meta.json`（主 Agent 唯一可读的清单）：
 
 ```json
 {
@@ -183,26 +209,9 @@ DSH **没有** `.dsh/agents/*.md` 自动发现机制；子代理由 `subagent` �
 }
 ```
 
-解析规则：文件名匹配 `^(\d{3})_(.+)\.txt$`；`index` 为前缀数字；剩余部分按 `_` 分割；含"第X卷"填入 `volume`，含"第X章"填入 `chapter`，最后部分为 `title`；无法拆分时 `full_title` 保留完整标题。
+解析规则：文件名匹配 `^(\d{3})_(.+)\.txt$`；`index` 为前缀数字；剩余部分按 `_` 分割；含"第X卷"填入 `volume`，含"第X章/回/节"填入 `chapter`，最后部分为 `title`；无法拆分时 `full_title` 保留完整标题。
 
-`_progress.json`：
-
-```json
-{ "total": 108, "done": 0, "current": null, "failed": [], "updated_at": "" }
-```
-
-每章 JSON：
-
-```json
-{
-  "chapter_index": 0,
-  "chapter_title": "卷首",
-  "source_file": "000_卷首.txt",
-  "characters": [],
-  "clothing": [],
-  "items": []
-}
-```
+逐章 JSON、卡片、各类索引与 `history/` 的**权威样例**见 `references/output-format.md`。
 
 ## 可选脚本
 
@@ -224,11 +233,15 @@ npx tsx .dsh/skills/character-extraction/scripts/validate_extraction.ts --chapte
 
 `scan_chapters.ts` 生成 `_meta.json`；`validate_extraction.ts` 校验 `ch*.json` 是否符合 `schemas/*.schema.json`、`quote` 能否在对应章节原文中找到，并输出 `_errors.json`。退出码 `0` 无错误、`1` 有错误、`2` 用法/环境错误。脚本不可用时主流程照常，由 Agent 手工完成等价步骤。
 
+版本管理脚本：`backup_output.ts`（决定是否备份并执行，输出决策 JSON；备份失败返回 `reason: "backup_error"` 且**仍退出 0**）、`history.ts`（`list` / `show` / `restore` / `prune`）。两者共享 `history-store.ts` 的确定性逻辑。
+
 自测：
 
 ```bash
 node --test --test-isolation=none .dsh/skills/character-extraction/scripts/scan_chapters.test.ts \
-  .dsh/skills/character-extraction/scripts/validate_extraction.test.ts
+  .dsh/skills/character-extraction/scripts/validate_extraction.test.ts \
+  .dsh/skills/character-extraction/scripts/backup_output.test.ts \
+  .dsh/skills/character-extraction/scripts/history.test.ts
 # 或：npx tsx --test .dsh/skills/character-extraction/scripts/*.test.ts
 ```
 

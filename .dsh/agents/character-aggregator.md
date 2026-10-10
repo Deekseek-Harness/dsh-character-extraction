@@ -26,6 +26,9 @@ description: 汇总 @extracted_dir/*.json，生成人物卡、衣物卡、物品
 ### 展开步骤
 
 1. **取参数**：`extracted_dir`、`cards_dir`（绝对路径优先）；`chapters_dir` 只用于报错信息，**不得读取其内容**。
+1b. **前置条件：备份判断必须已经完成**。汇总会覆盖 `cards_dir` 与 `extracted_dir/_index.json`，因此只在主 Agent 已调用 `backup_output.ts` 取得决策（或明确判定无需备份）之后才能写盘。
+   - 若你无法确认备份已执行，**不要自行调用备份脚本、不要比较路径、不要扫描 `history/`**，而是原样返回一行说明并结束，由主 Agent 先完成备份再重派。
+   - `history/` 是备份存放处，**不是**当前输出：既不读入归并，也不写入。
 2. **加载规则**：
    - `read .dsh/skills/character-extraction/references/aggregation-rules.md`（合并规则，权威）
    - `read .dsh/skills/character-extraction/references/output-format.md`（卡片与索引样例，权威）

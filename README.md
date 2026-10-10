@@ -22,13 +22,18 @@
     schemas/                     # 4 个 JSON Schema（可机器校验）
     templates/                   # 人物卡 / 衣物卡 / 物品卡模板
     scripts/                     # TypeScript 辅助脚本（无第三方依赖）
-      types.ts                   # Meta / Chapter / ValidationResult / ValidationError 等
+      types.ts                   # Meta / Chapter / ValidationResult / 版本管理类型
       util.ts                    # BOM、码位计数、排序等小工具
       schema-validator.ts        # 内置 JSON Schema 子集校验器
+      history-store.ts           # 版本历史存储层（路径规范化、索引、版本号、递归复制）
       scan_chapters.ts           # 扫描章节 → _meta.json
       validate_extraction.ts     # 校验 ch*.json + 回查 quote 原文
+      backup_output.ts           # 版本备份判断与执行（输出决策 JSON）
+      history.ts                 # history list / show / restore / prune
       scan_chapters.test.ts      # 自测（node:test）
       validate_extraction.test.ts
+      backup_output.test.ts
+      history.test.ts
   agents/
     chapter-extractor.md         # 单章提取子代理工作说明
     character-aggregator.md      # 汇总子代理工作说明
@@ -37,6 +42,7 @@ tsconfig.json                    # 可选类型检查配置
 chapters/                        # 默认输入目录（可由第一个 @ 覆盖）
 extracted/                       # 默认逐章输出目录（第二个 @）
 cards/                           # 默认卡片输出目录（第三个 @）
+history/                         # 版本备份（只在同输出目录重复运行时产生 V{n}/）
 ```
 
 ## 用法
@@ -52,12 +58,33 @@ cards/                           # 默认卡片输出目录（第三个 @）
 
 ## 处理流程
 
-1. **准备**：解析 `@` 参数 → 校验输入目录 → 创建输出目录 → 生成/读取 `_meta.json` → 初始化 `_progress.json`。
-2. **逐章循环**（`index` 升序）：每章把「读原文 → 提取 → 校验 → 写 `ch{index:03d}.json` → 更新 `_progress.json`」整体交给一个**单章子代理**（同步等待）。主 Agent 每章只保留一行状态。
+1. **准备**：解析 `@` 参数 → 校验输入目录 → **版本备份判断**（`backup_output.ts`，覆盖前）→ 创建输出目录 → **重扫** `_meta.json` → 初始化 `_progress.json`。
+2. **逐章循环**（`index` 升序）：**跳过已完成的章**；其余每章把「读原文 → 提取 → 校验 → 写 `ch{index:03d}.json` → 更新 `_progress.json`」整体交给一个**单章子代理**（同步等待）。主 Agent 每章只保留一行状态。
 3. **汇总**：交给汇总子代理，**只读** `extracted/*.json`，产出卡片与索引。
 4. **收尾**：进度对账 + 可选校验 + 一行摘要汇报。
 
 失败不阻塞：该章记入 `_progress.json` 的 `failed`，继续下一章。
+
+### 不重复提取（续跑）
+
+- 已完成的章（`extracted/ch{index:03d}.json` 存在且非空）**默认跳过**，不再读原文、不再提取。
+- `_meta.json` **每次运行都重扫**（只读文件名，幂等）——因此后来往 `chapters/` 里新增的章节会被自动发现并处理；沿用一个旧清单会静默漏章。
+- 单章子代理自己也有幂等守卫：若目标 `ch*.json` 已存在且合法，直接返回 `SKIP`，不读原文。即使被误派发也不会覆盖已有结果。
+- `failed` 中的章号默认重试。
+
+### 版本备份（`history/`）
+
+**只有两次运行落在同一个输出目录**时，才把上一次输出备份为 `history/V{n}/`；判断与执行全部由 `backup_output.ts` 完成，模型不比较路径、不扫描版本目录、不算版本号。
+
+| 本次运行与 `last_output` | 行为 |
+|---|---|
+| 同一输出目录且当前输出非空 | 备份为 `history/V{max+1}/`，写 `_manifest.json`，更新 `_index.json` |
+| 没有 `last_output`（首次） | 不备份，只记录 `last_output` |
+| 输出目录不同 | 不备份，只更新 `last_output` |
+| 当前输出为空（无 `ch*.json`） | 不备份，只更新 `last_output` |
+| 备份失败 | **不阻塞**：原因写入 `_progress.json` 的 `backup_failed`，继续提取 |
+
+版本号只增不减、不复用已删除编号；`history/` 永不备份进自身。
 
 ### 上下文纪律（本 skill 的核心约束）
 
@@ -86,17 +113,40 @@ node .dsh/skills/character-extraction/scripts/validate_extraction.ts \
 
 - `scan_chapters.ts`：支持规范命名 `000_卷首.txt`（含 `第X卷`/`第X章/回/节` 拆解），也兼容 `ch0001.txt` 这类命名——非规范命名会从同目录 novel-split 风格的 `_meta.json` 回填标题，诊断写 stderr，输出严格保持规范形状。空目录不报错，写出 `chapter_count: 0` 的清单并给出告警。
 - `validate_extraction.ts`：校验 `schemas/*.schema.json`、`chapter_index` 与文件名一致性、`quote` 能否在对应章节原文中逐字找到（忽略空白差异，UTF-8 / UTF-8 BOM / GB18030 均可读）、覆盖率缺失章；退出码 `0` 无错误 / `1` 有错误 / `2` 用法或环境错误，便于 CI。
+- `backup_output.ts`：版本备份判断与执行，输出决策 JSON 到 stdout。**备份失败仍退出 `0`**（不阻塞主流程），原因写入 `_progress.json` 的 `backup_failed`。
+- `history.ts`：`list` / `show <V{n}>` / `restore <V{n}> [--clean]` / `prune --keep <N> [--dry-run]`。
+
+### 版本管理命令
+
+```bash
+S=.dsh/skills/character-extraction/scripts
+
+# 覆盖前备份判断（由主 Agent 在逐章循环前调用）
+node $S/backup_output.ts --extracted extracted --cards cards
+
+# 查看与回滚
+node $S/history.ts list
+node $S/history.ts show V1
+node $S/history.ts restore V1            # 回滚前会自动把当前输出备份为 V{max+1}
+node $S/history.ts restore V1 --clean    # 同时删除当前输出中该版本没有的多余文件
+node $S/history.ts prune --keep 2        # 只保留最近 2 个版本（不会自动执行）
+node $S/history.ts prune --keep 2 --dry-run
+```
+
+`history/` 位置：默认 `@extracted_dir` 的父目录；两个输出目录不同父时取最近公共父目录；`--history` 可显式覆盖。
 
 ### 自测
 
-使用 Node 内置 `node:test` + `node:assert/strict`，fixture 全部建在 `fs.mkdtemp` 临时目录中，不依赖真实 `chapters/`、`extracted/` 数据。
+使用 Node 内置 `node:test` + `node:assert/strict`，fixture 全部建在 `fs.mkdtemp` 临时目录中，不依赖真实 `chapters/`、`extracted/`、`cards/` 数据。
 
 ```bash
 npm test
 # 或直接指定：
 node --test --test-isolation=none \
   .dsh/skills/character-extraction/scripts/scan_chapters.test.ts \
-  .dsh/skills/character-extraction/scripts/validate_extraction.test.ts
+  .dsh/skills/character-extraction/scripts/validate_extraction.test.ts \
+  .dsh/skills/character-extraction/scripts/backup_output.test.ts \
+  .dsh/skills/character-extraction/scripts/history.test.ts
 # 若已安装 tsx：
 npx tsx --test .dsh/skills/character-extraction/scripts/*.test.ts
 ```

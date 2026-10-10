@@ -6,3 +6,5 @@ chapters/*
 !chapters/.gitkeep
 cards/*
 !cards/.gitkeep
+history
+.dsh/tmp/

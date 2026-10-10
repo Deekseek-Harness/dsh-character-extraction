@@ -44,7 +44,11 @@
   "failed": [
     { "index": 1, "file": "001_楔子_一.txt", "error": "模型返回非法 JSON", "at": "2026-01-01T00:00:00Z" }
   ],
-  "updated_at": "2026-01-01T00:00:00Z"
+  "updated_at": "2026-01-01T00:00:00Z",
+  "backup_failed": {
+    "at": "2026-01-01T00:00:00Z",
+    "error": "EEXIST: file already exists, mkdir '...\\history\\V1'"
+  }
 }
 ```
 
@@ -52,6 +56,7 @@
 - `done`：已完成章数（= 存在的有效 `ch*.json` 数）。
 - `failed`：失败章列表，元素含 `index`、`file`、`error`；**失败不阻塞后续章节**。
 - `updated_at`：ISO 8601 UTC 时间戳。
+- `backup_failed`：**仅当版本备份失败时出现**，由 `backup_output.ts` 写入（原因 + 时间），字段出现即表示本轮备份没成功但主流程继续。
 
 ## 4. 逐章 JSON（`ch{index:03d}.json`）
 
@@ -308,3 +313,104 @@ sources:
   }
 }
 ```
+
+## 11. `history/` 版本备份
+
+每次运行都会覆盖输出，因此覆盖前由 `backup_output.ts` 判断是否备份。**只有两次运行落在同一个输出目录**时，才把上一次输出复制成 `history/V{n}/`。
+
+```text
+<workspace>/
+  chapters/                # 输入
+  extracted/               # 当前输出（逐章 JSON）
+  cards/                   # 当前输出（汇总卡片）
+  history/
+    _index.json            # 版本清单 + 上次输出目录记录
+    V1/
+      extracted/           # 备份的 _meta.json / _progress.json / _index.json / _errors.json / ch*.json
+      cards/               # 备份的 characters/ clothing/ items/ _index.json _index.md
+      _manifest.json
+    V2/
+      ...
+```
+
+`history/` 位置规则：默认取 `@extracted_dir` 的父目录；`@extracted_dir` 与 `@cards_dir` 不同父时取两者最近的公共父目录；可用 `--history` 显式覆盖。`history/` **永远不会**被备份进自身。
+
+### 11.1 `history/V{n}/_manifest.json`
+
+```json
+{
+  "version": "V1",
+  "created_at": "2026-01-01T00:00:00Z",
+  "source_chapters": "E:\\Workspaces\\角色提取 Agent 开发\\chapters",
+  "extracted_dir": "E:\\Workspaces\\角色提取 Agent 开发\\extracted",
+  "cards_dir": "E:\\Workspaces\\角色提取 Agent 开发\\cards",
+  "chapter_count": 2,
+  "character_count": 12,
+  "clothing_count": 11,
+  "item_count": 21,
+  "note": "备份自上一次运行输出"
+}
+```
+
+`note` 在回滚前自动快照时写为 `回滚前自动快照`。计数优先取自备份内的 `_meta.json`（章节数）与 `cards/_index.json`（卡片数）。
+
+### 11.2 `history/_index.json`
+
+```json
+{
+  "last_output": {
+    "extracted_dir": "E:\\Workspaces\\角色提取 Agent 开发\\extracted",
+    "cards_dir": "E:\\Workspaces\\角色提取 Agent 开发\\cards",
+    "updated_at": "2026-01-02T00:00:00Z"
+  },
+  "versions": [
+    {
+      "version": "V1",
+      "created_at": "2026-01-01T00:00:00Z",
+      "path": "history/V1",
+      "chapter_count": 2,
+      "character_count": 12,
+      "clothing_count": 11,
+      "item_count": 21
+    }
+  ],
+  "latest": "V1"
+}
+```
+
+- `last_output` 用**规范化绝对路径**，用于判断"两次运行是否同一个输出目录"。Windows 下比较时忽略大小写。
+- `versions[].path` 用**相对 `history/` 父目录**的路径并统一 `/` 分隔。
+- 版本号只增不减：已删除的编号不会被复用；`latest` 按实际最大号重算。
+
+### 11.3 `backup_output.ts` 的决策 JSON
+
+```json
+{
+  "backup_performed": true,
+  "version": "V2",
+  "reason": "same_output_dir",
+  "history_dir": "E:\\Workspaces\\角色提取 Agent 开发\\history",
+  "current_extracted": "E:\\Workspaces\\角色提取 Agent 开发\\extracted",
+  "current_cards": "E:\\Workspaces\\角色提取 Agent 开发\\cards",
+  "manifest": "E:\\Workspaces\\角色提取 Agent 开发\\history\\V2\\_manifest.json",
+  "counts": { "chapter_count": 2, "character_count": 12, "clothing_count": 11, "item_count": 21 }
+}
+```
+
+未备份时：
+
+```json
+{
+  "backup_performed": false,
+  "version": null,
+  "reason": "output_dir_changed",
+  "history_dir": "E:\\Workspaces\\角色提取 Agent 开发\\history",
+  "current_extracted": "E:\\Workspaces\\角色提取 Agent 开发\\extracted2",
+  "current_cards": "E:\\Workspaces\\角色提取 Agent 开发\\cards2",
+  "previous_extracted": "E:\\Workspaces\\角色提取 Agent 开发\\extracted",
+  "previous_cards": "E:\\Workspaces\\角色提取 Agent 开发\\cards"
+}
+```
+
+`reason` 取值：`same_output_dir`（已备份）、`first_run`、`output_dir_changed`、`empty_output`、`history_inside_output`、`backup_error`（失败但不阻塞，原因同时写入 `_progress.json` 的 `backup_failed`）。
+
