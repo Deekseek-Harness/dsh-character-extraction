@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/cards-index.schema.json",
+  "title": "卡片索引（_index.json）",
+  "description": "@cards_dir/_index.json 的形状：角色实体卡（一人一目录）+ 阶段卡 + 衣物卡 + 物品卡。`cards/characters/_index.json` 只含 characters 段，形状相同。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["characters", "clothing", "items"],
+  "properties": {
+    "characters": {
+      "type": "array",
+      "description": "角色实体卡索引。每个角色一个目录，内含 index.md 与 phase_*.md。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "dir", "entity_file", "chapters", "phases"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^char_[0-9]{4}$" },
+          "name": { "type": "string", "minLength": 1 },
+          "dir": { "type": "string", "minLength": 1, "description": "角色目录（相对工作区根），如 cards/characters/卢云。" },
+          "entity_file": { "type": "string", "minLength": 1, "description": "实体卡路径，如 cards/characters/卢云/index.md。" },
+          "chapters": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          },
+          "phases": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["phase_id", "label", "file", "chapters"],
+              "properties": {
+                "phase_id": { "type": "string", "pattern": "^phase_[0-9]{2}$" },
+                "label": { "type": "string", "minLength": 1 },
+                "file": { "type": "string", "minLength": 1, "description": "阶段卡路径，如 cards/characters/卢云/phase_01_卖面时期.md。" },
+                "chapters": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 0 },
+                  "uniqueItems": true
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "clothing": {
+      "type": "array",
+      "description": "衣物卡索引。character_id / phase_id 关联到对应阶段卡。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "character", "character_id", "phase_id", "scene", "name", "file", "chapters"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^cloth_[0-9]{4}$" },
+          "character": { "type": "string", "minLength": 1 },
+          "character_id": { "type": "string", "description": "关联角色 ID；无关联写空串。" },
+          "phase_id": { "type": "string", "description": "关联阶段 ID；无关联写空串。" },
+          "scene": { "type": "string" },
+          "name": { "type": "string", "minLength": 1 },
+          "file": { "type": "string", "minLength": 1 },
+          "chapters": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "items": {
+      "type": "array",
+      "description": "物品卡索引。character_id / phase_id 关联到对应阶段卡。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "type", "holder", "character_id", "phase_id", "file", "chapters"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^item_[0-9]{4}$" },
+          "name": { "type": "string", "minLength": 1 },
+          "type": { "type": "string" },
+          "holder": { "type": "string" },
+          "character_id": { "type": "string", "description": "关联持有者 ID；无关联写空串。" },
+          "phase_id": { "type": "string", "description": "关联阶段 ID；无关联写空串。" },
+          "file": { "type": "string", "minLength": 1 },
+          "chapters": {
+            "type": "array",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          }
+        }
+      }
+    }
+  }
+}

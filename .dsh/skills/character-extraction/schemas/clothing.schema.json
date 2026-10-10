@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local/character-extraction/clothing.schema.json",
-  "title": "衣物",
-  "description": "单章 clothing[] 的元素，按「角色 + 场景」组织。规则见 references/clothing-rules.md。",
+  "title": "衣物（逐章记录）",
+  "description": "单章 clothing[] 的元素，按「角色 + 场景」组织。汇总后写入衣物卡时补充 character_id / phase_id，使其可关联到阶段卡。规则见 references/clothing-rules.md。",
   "type": "object",
   "additionalProperties": false,
   "required": ["character", "scene", "description", "quote"],
@@ -25,6 +25,10 @@
     "color_material": {
       "type": "string",
       "description": "颜色/材质；原文未写写空串，不要推断。"
+    },
+    "phase_hint": {
+      "type": "string",
+      "description": "扩展字段：本章的阶段提示，与同章 characters[].phase_hint 保持一致；无法判断写空串。"
     },
     "quote": {
       "type": "string",

@@ -5,6 +5,8 @@ type: ""
 appearance: ""
 function: ""
 holder: ""
+character_id: char_0001
+phase_id: phase_01
 chapters: [0]
 confidence: 高
 sources:
@@ -21,7 +23,13 @@ sources:
 
 ## 持有者
 
+## 所属阶段
+- 角色：（char_0001）
+- 阶段：phase_01
+- 章节：第0章
+
 ## 出场章节
+- 第 0 章《卷首》
 
 ## 原文依据
 > 第 0 章：……

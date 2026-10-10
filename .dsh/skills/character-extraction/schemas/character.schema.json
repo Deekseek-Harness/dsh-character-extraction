@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local/character-extraction/character.schema.json",
-  "title": "角色",
-  "description": "单章 characters[] 的元素。规则见 references/character-rules.md。",
+  "title": "角色（逐章记录）",
+  "description": "单章 characters[] 的元素：**该章**的状态快照。`age` / `identity` / `appearance` / `aliases` 都是本章值，汇总时按章节归属分配到阶段卡，**不做全局并集**。汇总期的实体卡与阶段卡分别见 character-entity.schema.json 与 character-phase.schema.json。规则见 references/character-rules.md。",
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "aliases", "gender", "age", "identity", "appearance", "relations", "confidence"],
@@ -14,7 +14,7 @@
     },
     "aliases": {
       "type": "array",
-      "description": "别名/绰号/称号。不得为别名单独建条目，也不得包含 name 本身。",
+      "description": "**本章**出现的别名/绰号/称号。不得为别名单独建条目，也不得包含 name 本身。汇总时按章节归属分配到对应阶段卡的 allowed_names。",
       "items": { "type": "string", "minLength": 1 },
       "uniqueItems": true
     },
@@ -25,19 +25,19 @@
     },
     "age": {
       "type": "string",
-      "description": "年龄或年龄描述；未知写空串或加 [不确定]。"
+      "description": "**本章**的年龄或年龄描述；未知写空串或加 [不确定]。"
     },
     "identity": {
       "type": "string",
-      "description": "身份/职业，尽量用原文词。"
+      "description": "**本章**的身份/职业，尽量用原文词。跨章身份转变由汇总阶段切分为不同阶段卡。"
     },
     "appearance": {
       "type": "string",
-      "description": "外貌原文描述，不润色；无描写写空串。"
+      "description": "**本章**的外貌原文描述，不润色；无描写写空串。"
     },
     "relations": {
       "type": "array",
-      "description": "有方向的关系：target 为对方，type 为从本角色出发的关系类型。",
+      "description": "有方向的关系：target 为对方，type 为从本角色出发的关系类型。汇总时稳定关系进实体卡，时变关系进阶段卡。",
       "items": {
         "type": "object",
         "additionalProperties": false,
@@ -47,10 +47,14 @@
           "type": { "type": "string", "minLength": 1, "description": "关系类型，如 师徒 / 结义兄弟 / 仇敌。" },
           "quote": {
             "type": "string",
-            "description": "扩展字段：支撑该关系的原文引用（人物卡「依据」列）。"
+            "description": "扩展字段：支撑该关系的原文引用（阶段卡/实体卡「依据」列）。"
           }
         }
       }
+    },
+    "phase_hint": {
+      "type": "string",
+      "description": "扩展字段：本章所属的阶段提示（如「卖面时期」「军中参谋」），用于汇总时的阶段切分；无法判断时写空串。**逐章提取阶段只给提示，不做阶段切分**。"
     },
     "confidence": {
       "type": "string",
@@ -59,7 +63,7 @@
     },
     "sources": {
       "type": "array",
-      "description": "扩展字段：原文依据。人物卡「原文依据」的数据源；建议尽量填写。",
+      "description": "扩展字段：原文依据。实体卡与阶段卡「原文依据」的数据源；建议尽量填写。",
       "items": {
         "type": "object",
         "additionalProperties": false,

@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/character-entity.schema.json",
+  "title": "人物实体卡",
+  "description": "实体卡 cards/characters/<姓名>/index.md 的 frontmatter。只允许跨阶段稳定的身份锚点：年龄 / 身份 / 外貌 / 着装 / 称呼一律不进实体卡，它们属于阶段卡（character-phase.schema.json）。规则见 references/character-rules.md 与 references/aggregation-rules.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "aliases",
+    "gender",
+    "stable_traits",
+    "relations_graph",
+    "first_chapter",
+    "chapters",
+    "confidence",
+    "phases",
+    "sources"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^char_[0-9]{4}$",
+      "description": "角色 ID，形如 char_0001。分配顺序：首次出场章升序 → 主名 Unicode 码位升序。"
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "主名：最正式、最具辨识度的称呼（优先「姓+名」）。"
+    },
+    "aliases": {
+      "type": "array",
+      "description": "**跨阶段通用**别名。只在个别阶段出现的称呼不得写在这里，属于阶段卡的 allowed_names。不得包含 name 本身，去重。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "gender": {
+      "type": "string",
+      "pattern": "^(男|女|未知)( \\[不确定\\])?$",
+      "description": "男/女/未知；不确定时写作「未知 [不确定]」。"
+    },
+    "stable_traits": {
+      "type": "object",
+      "description": "跨阶段稳定的外貌 / 身份基线。阶段内会变的年龄与身份不写在这里。",
+      "additionalProperties": false,
+      "required": ["base_appearance", "base_identity", "permanent_features"],
+      "properties": {
+        "base_appearance": {
+          "type": "string",
+          "description": "基线外貌：全书反复出现、不随阶段改变的外貌描述；无则空串。"
+        },
+        "base_identity": {
+          "type": "string",
+          "description": "基线身份：出场时的最初身份（如「落第秀才」），用于锚定人物底色；无则空串。"
+        },
+        "permanent_features": {
+          "type": "string",
+          "description": "永久特征：胎记、疤痕、身形等跨阶段不变的身体标记；无则空串。"
+        }
+      }
+    },
+    "relations_graph": {
+      "type": "array",
+      "description": "**稳定关系**（跨阶段长期成立）。时变关系写进对应阶段卡的 relations。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "type", "chapters"],
+        "properties": {
+          "target": { "type": "string", "minLength": 1, "description": "关系对象的人名，不要用代词。" },
+          "type": { "type": "string", "minLength": 1, "description": "关系类型，如 结义兄弟 / 师徒 / 夫妻。" },
+          "chapters": {
+            "type": "array",
+            "description": "该关系成立的章号（升序去重）。",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "first_chapter": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "首次出场章号。"
+    },
+    "chapters": {
+      "type": "array",
+      "description": "全部出场章号（升序去重）。阶段章节是其不重叠的划分。",
+      "items": { "type": "integer", "minimum": 0 },
+      "uniqueItems": true
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["高", "中", "低"],
+      "description": "实体层置信度（各章最高值）。"
+    },
+    "phases": {
+      "type": "array",
+      "description": "阶段索引。阶段文件与实体卡同目录，`file` 用相对文件名。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["phase_id", "label", "file", "chapters"],
+        "properties": {
+          "phase_id": { "type": "string", "pattern": "^phase_[0-9]{2}$", "description": "形如 phase_01。" },
+          "label": { "type": "string", "minLength": 1, "description": "阶段标签，如「卖面时期」。" },
+          "file": { "type": "string", "minLength": 1, "description": "阶段卡文件名，如 phase_01_卖面时期.md。" },
+          "chapters": {
+            "type": "array",
+            "description": "该阶段覆盖的章号（升序去重，只含实际出场的章）。",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "sources": {
+      "type": "array",
+      "description": "实体层原文依据。quote 必须逐字来自逐章 JSON，汇总阶段不得改写。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chapter", "quote"],
+        "properties": {
+          "chapter": { "type": "integer", "minimum": 0 },
+          "quote": { "type": "string", "minLength": 1, "description": "必须逐字来自本章原文。" }
+        }
+      }
+    }
+  }
+}

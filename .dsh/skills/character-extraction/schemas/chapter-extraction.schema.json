@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local/character-extraction/chapter-extraction.schema.json",
   "title": "单章提取结果",
-  "description": "一章的提取产物，落盘为 @extracted_dir/ch{index:03d}.json。",
+  "description": "一章的提取产物，落盘为 @extracted_dir/ch{index:03d}.json。逐章阶段只记录**本章**状态与 phase_hint 提示，不做阶段切分；阶段切分与实体卡生成属于汇总阶段。",
   "type": "object",
   "additionalProperties": false,
   "required": ["chapter_index", "chapter_title", "source_file", "characters", "clothing", "items"],
@@ -24,7 +24,7 @@
     },
     "characters": {
       "type": "array",
-      "description": "本章出现的角色。无名龙套不提取。",
+      "description": "本章出现的角色（各字段均为本章值，另含 phase_hint 提示）。无名龙套不提取。",
       "items": { "$ref": "character.schema.json" }
     },
     "clothing": {

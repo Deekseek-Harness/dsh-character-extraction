@@ -1,8 +1,8 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://local/character-extraction/item.schema.json",
-  "title": "物品",
-  "description": "单章 items[] 的元素。规则见 references/item-rules.md。",
+  "title": "物品（逐章记录）",
+  "description": "单章 items[] 的元素。汇总后写入物品卡时补充 character_id / phase_id，使其可关联到阶段卡。规则见 references/item-rules.md。",
   "type": "object",
   "additionalProperties": false,
   "required": ["name", "type", "quote"],
@@ -28,6 +28,10 @@
     "holder": {
       "type": "string",
       "description": "本章内的持有者姓名；无主写空串或「无人持有」。"
+    },
+    "phase_hint": {
+      "type": "string",
+      "description": "扩展字段：本章的阶段提示，与同章该持有者的 characters[].phase_hint 保持一致；无法判断写空串。"
     },
     "quote": {
       "type": "string",

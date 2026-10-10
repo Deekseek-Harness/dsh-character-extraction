@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/character-phase.schema.json",
+  "title": "人物阶段卡",
+  "description": "阶段卡 cards/characters/<姓名>/phase_XX_<标签>.md 的 frontmatter。只描述该章节范围内**同时成立**的状态：同一字段内的多个取值必须能并存（并存时列入正文的取值说明），互相排斥的状态必须拆到不同阶段。规则见 references/character-rules.md 与 references/aggregation-rules.md。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "phase_id",
+    "character_id",
+    "character_name",
+    "label",
+    "chapters",
+    "age",
+    "identity",
+    "appearance",
+    "clothing_refs",
+    "item_refs",
+    "relations",
+    "allowed_names",
+    "forbidden_names",
+    "confidence",
+    "sources"
+  ],
+  "properties": {
+    "phase_id": {
+      "type": "string",
+      "pattern": "^phase_[0-9]{2}$",
+      "description": "形如 phase_01。角色内唯一，从 01 起连续编号。"
+    },
+    "character_id": {
+      "type": "string",
+      "pattern": "^char_[0-9]{4}$",
+      "description": "所属角色 ID，与实体卡 id 一致。"
+    },
+    "character_name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "所属角色主名，与实体卡 name 一致。"
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32,
+      "description": "阶段标签，取逐章 phase_hint；缺省时取该阶段首现身份的第一个分句（截断）。"
+    },
+    "chapters": {
+      "type": "array",
+      "description": "该阶段覆盖的章号（升序去重，只含实际出场的章）。阶段之间不重叠。",
+      "items": { "type": "integer", "minimum": 0 },
+      "uniqueItems": true
+    },
+    "age": {
+      "type": "string",
+      "description": "该阶段的年龄或年龄描述（原文用词）。原文未写写空串。"
+    },
+    "identity": {
+      "type": "string",
+      "description": "该阶段一致的身份/职业。跨阶段不可逆的身份转变必须拆到两个阶段卡。"
+    },
+    "appearance": {
+      "type": "string",
+      "description": "该阶段一致的外貌描述，不润色。"
+    },
+    "clothing_refs": {
+      "type": "array",
+      "description": "关联的衣物卡路径（相对工作区根，如 cards/clothing/卢云-胄甲.md）。指向的衣物卡 phase_id 必须等于本卡 phase_id。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "item_refs": {
+      "type": "array",
+      "description": "关联的物品卡路径（相对工作区根，如 cards/items/郾月大刀.md）。指向的物品卡 phase_id 必须等于本卡 phase_id。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "relations": {
+      "type": "array",
+      "description": "**时变关系**（只在该阶段成立的上下级、护卫、君臣等）。稳定关系属于实体卡 relations_graph，不重复写在这里。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["target", "type", "chapters"],
+        "properties": {
+          "target": { "type": "string", "minLength": 1, "description": "关系对象的人名，不要用代词。" },
+          "type": { "type": "string", "minLength": 1, "description": "关系类型，如 上下级 / 护卫 / 君臣。" },
+          "chapters": {
+            "type": "array",
+            "description": "该关系在本阶段内成立的章号。",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          }
+        }
+      }
+    },
+    "allowed_names": {
+      "type": "array",
+      "description": "该阶段**实际出现**的称呼（主名 + 该阶段出现的别名）。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "forbidden_names": {
+      "type": "array",
+      "description": "该阶段**不应出现**的称呼：只属于其他阶段的称呼。与 allowed_names 不得有交集（机器校验会报错）。",
+      "items": { "type": "string", "minLength": 1 },
+      "uniqueItems": true
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["高", "中", "低"],
+      "description": "阶段层置信度（阶段内各章的最低值）。"
+    },
+    "sources": {
+      "type": "array",
+      "description": "阶段原文依据。quote 必须逐字来自逐章 JSON，不得改写、不得跨章拼接。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["chapter", "quote"],
+        "properties": {
+          "chapter": { "type": "integer", "minimum": 0 },
+          "quote": { "type": "string", "minLength": 1, "description": "必须逐字来自本章原文。" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://local/character-extraction/characters-index.schema.json",
+  "title": "角色与阶段索引（characters/_index.json）",
+  "description": "@cards_dir/characters/_index.json 的形状：每个角色一个目录，目录内 index.md 是实体卡、phase_XX_<标签>.md 是阶段卡。完整索引（含衣物与物品）见 cards-index.schema.json。",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["characters"],
+  "properties": {
+    "characters": {
+      "type": "array",
+      "description": "角色实体卡索引。",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "dir", "entity_file", "chapters", "phases"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^char_[0-9]{4}$", "description": "角色 ID。分配顺序：首次出场章升序 → 主名 Unicode 码位升序。" },
+          "name": { "type": "string", "minLength": 1, "description": "主名。" },
+          "dir": { "type": "string", "minLength": 1, "description": "角色目录（相对工作区根），如 cards/characters/卢云。" },
+          "entity_file": { "type": "string", "minLength": 1, "description": "实体卡路径，如 cards/characters/卢云/index.md。" },
+          "chapters": {
+            "type": "array",
+            "description": "全部出场章号（升序去重）。",
+            "items": { "type": "integer", "minimum": 0 },
+            "uniqueItems": true
+          },
+          "phases": {
+            "type": "array",
+            "description": "阶段索引；覆盖该目录下全部阶段卡文件，章节互不重叠。",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["phase_id", "label", "file", "chapters"],
+              "properties": {
+                "phase_id": { "type": "string", "pattern": "^phase_[0-9]{2}$" },
+                "label": { "type": "string", "minLength": 1 },
+                "file": { "type": "string", "minLength": 1, "description": "阶段卡路径，如 cards/characters/卢云/phase_01_落第秀才.md。" },
+                "chapters": {
+                  "type": "array",
+                  "items": { "type": "integer", "minimum": 0 },
+                  "uniqueItems": true
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

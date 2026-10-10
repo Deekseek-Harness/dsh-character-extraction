@@ -95,19 +95,30 @@
 
 ```text
 你是汇总子代理。先读取 <workdir>/.dsh/agents/character-aggregator.md 并严格遵照执行，再读取 <workdir>/.dsh/skills/character-extraction/references/aggregation-rules.md 与 references/output-format.md。
-参数：extracted_dir={{extracted_dir}}; cards_dir={{cards_dir}}
-只返回一行：cards OK characters=<n> clothing=<n> items=<n> failed=<n>
+参数：extracted_dir={{extracted_dir}}; cards_dir={{cards_dir}}; root={{workdir}}
+只返回一行：cards OK characters=<n> phases=<n> clothing=<n> items=<n> failed=<n>
 ```
 
 2. 汇总子代理**只读** `extracted_dir/_meta.json` 与 `extracted_dir/ch*.json`，**不读** `chapters_dir/*.txt`。
-3. 产出：`cards_dir/characters/*.md`、`cards_dir/clothing/*.md`、`cards_dir/items/*.md`、`cards_dir/_index.json`、`cards_dir/_index.md`，以及 `extracted_dir/_index.json`。
-4. 合并规则见 `references/aggregation-rules.md`；所有合并结果必须保留 `sources`。
+3. 产出：**一人一目录**的 `cards_dir/characters/<姓名>/index.md`（实体卡）与
+   `cards_dir/characters/<姓名>/phase_XX_<标签>.md`（阶段卡）、`cards_dir/characters/_index.json`、
+   `cards_dir/clothing/*.md`、`cards_dir/items/*.md`、`cards_dir/_index.json`、`cards_dir/_index.md`，
+   以及 `extracted_dir/_index.json`。
+4. 实体归并、阶段切分（`phase_hint` 优先，其次 `age`/`identity`/`appearance`/`clothing` 的持续变化，
+   单章阶段并入相邻阶段标 `[短暂]`）、衣物/物品的阶段关联规则见 `references/aggregation-rules.md`；
+   所有合并结果必须保留 `sources`。
+5. 首选让子代理直接调用确定性脚本，避免手工拼字符串：
+
+   `node .dsh/skills/character-extraction/scripts/aggregate_cards.ts --extracted <extracted_dir> --cards <cards_dir> --root <workdir> --summary <extracted_dir>/_agg.json`
+
+6. **实体卡不得是字段并集**：年龄、身份、外貌、别名、着装都按阶段归属；生图只取
+   「实体卡 + 目标阶段卡」。
 
 ## 阶段 3：收尾与对账
 
 1. **进度对账**：若 `_progress.json` 与实际文件不一致（例如子代理崩溃未更新），发一条**极短**子代理任务：按 `extracted_dir/ch*.json` 的文件清单重建 `_progress.json` 的 `total` / `done` / `failed`；只看文件名，不读 JSON 内容。
 2. 可选校验：`node .dsh/skills/character-extraction/scripts/validate_extraction.ts --chapters <chapters_dir> --extracted <extracted_dir> --errors <extracted_dir>/_errors.json`。
-3. 向用户汇报**一行摘要**：总章数、成功数、失败章号、卡片数、产出目录。不要把提取内容复述进上下文。
+3. 向用户汇报**一行摘要**：总章数、成功数、失败章号、角色实体数、阶段卡数、卡片数、产出目录。不要把提取内容复述进上下文。
 
 ## 恢复（中断后续跑）
 
@@ -148,4 +159,6 @@
 - [ ] 主 Agent 上下文里没有任何章节原文、没有任何 `ch*.json` 内容。
 - [ ] 失败章记入 `failed`，且未阻塞后续章节。
 - [ ] 汇总阶段没有读取任何 `.txt`。
+- [ ] 人物卡是「一人一目录」：`index.md`（实体卡）+ `phase_XX_<标签>.md`（阶段卡）。
+- [ ] 实体卡里没有年龄 / 身份 / 外貌 / 别名的并集；阶段卡描述特定章节范围内的状态。
 - [ ] 汇报只有摘要，没有原文粘贴。
